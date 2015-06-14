@@ -2,6 +2,7 @@ __author__ = 'Su Lei'
 
 import numpy as np
 import math
+import time
 
 swcType = np.dtype({
     'names': ['serial', 'nodeTye', 'x', 'y', 'z', 'r', 'parentSerial'],
@@ -38,18 +39,15 @@ def readSwcNp(filename):
     swcNp = np.array([], dtype=swcType)
     for i in xrange(len(swc)):
         tmpSwcNp = np.array(tuple(swc[i]), dtype=swcType)
-        # print tmpSwcNp
         swcNp = np.append(tmpSwcNp, swcNp)
     return swcNp
 
-def cmp1(x, y):
-    if x[4] > y[4]:
+def cmpAsZ(x, y):
+    if x[2] > y[2]:
         return 1
     else:
         return -1
 
-def sortSwc(s):
-    s.sort(cmp1)
 
 def trimSwc(s):
     while s[len(s) - 1][6] is -1:
@@ -65,12 +63,10 @@ def convert2line(s):
     lines = []
     i = 0
     for col in s:
-        print col
         if col[6] != col[0] - 1:
             if i is not 0:
                 lines.append(tmp)
             tmp = []
-        print tmp
         tmp.append(col)
         if i == sn - 1:
             lines.append(tmp)
@@ -108,31 +104,96 @@ def insertLines(ls, minDistance):
                     cx = cp[2] + slopeOfX * (k + 1)
                     cy = cp[3] + slopeOfY * (k + 1)
                     cz = cp[4] + slopeOfZ * (k + 1)
+                    print [cx, cy, cz]
                     coordinatesOfLine.append([cx, cy, cz])
             if j == (len(line) - 2):
                 coordinatesOfLine.append([np[2], np[3], np[4]])
         coordinatesOfLines.append(coordinatesOfLine)
     return coordinatesOfLines
 
+def getBallCordinates(r):
+    ballCordinates = []
+    for i in xrange(-r, r + 1):
+        for j in xrange(-r, r + 1):
+            for k in xrange(-r, r + 1):
+                if i ** 2 + j ** 2 + k ** 2 <= r ** 2:
+                    ballCordinates.append((i, j, k))
+    return ballCordinates
+
+def getAllCordinates(ls, r):
+    allCordinates = []
+    ballCor = getBallCordinates(r)
+    time.clock()
+    for i in xrange(len(ls)):
+        line = ls[i]
+        print i + 1, ' of ', len(ls), ' ', len(line), ' ', time.clock()
+        for j in line:
+            cx, cy, cz = j
+            for k in ballCor:
+                x0 = int(cx) + k[0]
+                y0 = int(cy) + k[1]
+                z0 = int(cz) + k[2]
+                if x0 < 0 or y0 < 0 or z0 < 0:
+                    continue
+                allCordinates.append((x0, y0, z0))
+        allCordinates = list(set(tuple(allCordinates)))
+    allCordinates.sort(cmpAsZ)
+    return np.array(allCordinates)
+
+def getArea(a):
+    return ((min(a[:, 0]), max(a[:, 0])),
+            (min(a[:, 1]), max(a[:, 1])), (min(a[:, 2]), max(a[:, 2])))
+
+def groupByZ(a, zRange):
+    zS = zRange[0]
+    zE = zRange[1]
+    groups = []
+    j = 0
+    for i in xrange(zS, zE + 1):
+        tmp = []
+        while j < len(a):
+            if a[j, 2] == i:
+                tmp.append(a[j])
+                j += 1
+            else:
+                break
+        groups.append(tmp)
+    return groups
 
 
-outSwcNum = readSwc('test1.swc')
-trimSwc(outSwcNum)
-linesInSwc = convert2line(outSwcNum)
-print insertLines(linesInSwc, 5)
+if __name__ == '__main__':
+    outSwcNum = readSwc('test.swc')
+    trimSwc(outSwcNum)
+    linesInSwc = convert2line(outSwcNum)
+    insertedLines = insertLines(linesInSwc, 5)
+    allPoints = getAllCordinates(insertedLines, 10)
+    highlightArea = getArea(allPoints)
+    pointsGroupedByZ = groupByZ(allPoints, (highlightArea[2][0], highlightArea[2][1]))
 
-
-
-
-
-
+# for zPoints in pointsGroupedByZ:
+#     z = zPoints[0][2]
+#     f = open('.\pointsGroupedByZ\z' + str(z) + '.swc', 'w')
+#     for i in xrange(len(zPoints)):
+#         t = zPoints[i]
+#         t = list(t)
+#         t.append('\n')
+#         f.writelines(' '.join([str(x) for x in t]))
+#     f.close()
 # fo = open('test2.swc', 'w')
-# # sortSwc(outSwcNum)
-# for i in xrange(len(outSwcNum)):
-#     outSwcNum[i].append('\n')
-#     fo.write(' '.join([str(x) for x in outSwcNum[i]]))
-#
+# ind = 0
+# for i in xrange(len(allPoints)):
+#     t = allPoints[i]
+#     t = list(t)
+#     t.append('\n')
+#     fo.writelines(' '.join([str(x) for x in t]))
+#     ind += 1
 # fo.close()
+# print ind
+
+
+
+
+
 
 
 
