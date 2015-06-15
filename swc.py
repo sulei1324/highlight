@@ -161,14 +161,14 @@ def groupByZ(a, zRange):
     return groups
 
 
-if __name__ == '__main__':
-    outSwcNum = readSwc('test.swc')
-    trimSwc(outSwcNum)
-    linesInSwc = convert2line(outSwcNum)
-    insertedLines = insertLines(linesInSwc, 5)
-    allPoints = getAllCordinates(insertedLines, 10)
-    highlightArea = getArea(allPoints)
-    pointsGroupedByZ = groupByZ(allPoints, (highlightArea[2][0], highlightArea[2][1]))
+# if __name__ == '__main__':
+#     outSwcNum = readSwc('test.swc')
+#     trimSwc(outSwcNum)
+#     linesInSwc = convert2line(outSwcNum)
+#     insertedLines = insertLines(linesInSwc, 5)
+#     allPoints = getAllCordinates(insertedLines, 10)
+#     highlightArea = getArea(allPoints)
+#     pointsGroupedByZ = groupByZ(allPoints, (highlightArea[2][0], highlightArea[2][1]))
 
 # for zPoints in pointsGroupedByZ:
 #     z = zPoints[0][2]
