@@ -18,15 +18,19 @@ import numpy as np
 # for i in f:
 #     print i
 
-def test():
-    a = [1, 2, 3]
-    b = 5
-    return (a, b)
+def test(b):
+    b.put(5, 100)
+    test1(b)
+
+def test1(c):
+    c.put(4, 2000)
+
 
 # m, n = test()
 # print m, n
 a = np.array(((2, 3, 4), (8, 5, 1)))
-print a[1, 2]
-print a.take(1, axis=1)
-a.put(5, 100)
-print a.take(5)
+d = a
+test(a)
+print a.take(5), a.take(4)
+print a, d
+

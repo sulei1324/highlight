@@ -4,10 +4,11 @@ import cv2 as cv
 import numpy as np
 import math
 
+
 def createRollingBall(r):
     if r <= 10:
         shrinkFactor = 1
-        arcTrimPer  = 24
+        arcTrimPer = 24
     elif r <= 30:
         shrinkFactor = 2
         arcTrimPer = 24
@@ -21,14 +22,14 @@ def createRollingBall(r):
     if smallballradius < 1:
         smallballradius = 1
     rsquare = smallballradius * smallballradius
-    xtrim = math.floor(arcTrimPer * smallballradius / 100.0)
-    halfWidth = math.floor(smallballradius - xtrim)
+    xtrim = arcTrimPer * smallballradius / 100
+    halfWidth = smallballradius - xtrim
     width = halfWidth * 2 + 1
-    data = np.zeros(width, width)
+    data = np.zeros((width, width))
     for i in xrange(width):
         for j in xrange(width):
-            xval = j - (halfWidth + 1)
-            yval = i - (halfWidth + 1)
+            xval = j - halfWidth
+            yval = i - halfWidth
             temp = rsquare - xval * xval - yval * yval
             temp = np.float32(temp)
             if temp > 0:
@@ -36,10 +37,9 @@ def createRollingBall(r):
             else:
                 data[i, j] = 0
     return data, shrinkFactor
-    pass
+
 
 def filter3(inImage, l, pixel0, inc, t):
-    shiftBy = 0
     i = 0
     p = pixel0
     v3 = inImage.take(pixel0)
@@ -49,44 +49,169 @@ def filter3(inImage, l, pixel0, inc, t):
         v2 = v3
         if i < l - 1:
             v3 = inImage.take(p + inc)
-        if t ==  'MAXIMUM':
+        if t == 'MAXIMUM':
             if v1 > v3:
-                max = v1
+                max1 = v1
             else:
-                max = v3
-            if v2 > max:
-                max = v2
-            shiftBy += max - v2
-            inImage.put(p, max)
+                max1 = v3
+            if v2 > max1:
+                max1 = v2
+            inImage.put(p, max1)
         else:
             inImage.put(p, (v1 + v2 + v3) * 1 / 3)
         p += inc
         i += 1
 
 
-
-    pass
-
-def filter3x3(inImage, t):
+def filter3x3(inImage, type1):
     height, width = inImage.shape
-    shiftBy = 0
     for y in xrange(height):
-        inImage, t = filter3(inImage, width, y * width, 1, t)
-        shiftBy += t
+        filter3(inImage, width, y * width, 1, type1)
     for x in xrange(width):
-        inImage, t = filter3(inImage, height, x, height, t)
-        shiftBy += t
-    temp = shiftBy / width / height
-    pass
+        filter3(inImage, height, x, height, type1)
+
 
 def getMinMax(inImage):
-    pass
+    min1 = 256
+    max1 = -1
+    y, x = inImage.shape
+    for i in xrange(y):
+        for j in xrange(x):
+            if inImage[i, j] > max1:
+                max1 = inImage[i, j]
+            elif inImage(i, j) < min1:
+                min1 = inImage[i, j]
+    return min1, max1
+
 
 def shrinkImage(inImage, f):
-    pass
+    height, width = inImage.shape
+    sWidth = (width + f - 1) / f
+    sHeight = (height + f - 1) / f
+    smallImage = np.zeros((sHeight, sWidth))
+    for ySmall in xrange(sHeight):
+        for xSmall in xrange(sWidth):
+            min1 = 256
+            j = 0
+            y = f * ySmall
+            while j < f and y < height:
+                k = 0
+                x = f * xSmall
+                while k < f and x < width:
+                    thispixel = inImage[y, x]
+                    if thispixel < min1:
+                        min1 = thispixel
+                    k += 1
+                    x += 1
+                j += 1
+                y += 1
+            smallImage[ySmall, xSmall] = min1
+    return smallImage
+
 
 def rollBall(b, inImage):
-    pass
+    height, width = inImage.shape
+    ballWidth = b.shape[0]
+    radius = ballWidth / 2
+    cache = np.zeros((ballWidth, width))
+    y = -radius
+    while y < height + radius:
+        nextLineToWriteInCache = (y + radius) % ballWidth
+        nextLineToRead = y + radius
+        if nextLineToRead < height:
+            cache[nextLineToWriteInCache, :] = inImage[nextLineToRead, :]
+            x = 0
+            p = nextLineToRead
+            while x < width:
+                inImage[p, x] = -100000
+                x += 1
+        y0 = y - radius
+        if y0 < 0:
+            y0 = 0
+        yBall0 = y0 - y + radius
+        yEnd = y + radius
+        if yEnd > height - 1:
+            yEnd = height - 1
+        x = -radius
+        while x < width + radius:
+            z = 256
+            x0 = x - radius
+            if x0 < 0:
+                x0 = 0
+            xBall0 = x0 - x + radius
+            xEnd = x + radius
+            if xEnd > width - 1:
+                xEnd = width - 1
+            yp = y0
+            yBall = yBall0
+            while yp <= yEnd:
+                cachePointer = yp % ballWidth
+                xp = x0
+                bp = xBall0
+                while xp <= xEnd:
+                    zReduced = cache[cachePointer, xp] - b[yBall, bp]
+                    if z > zReduced:
+                        z = zReduced
+                    xp += 1
+                    bp += 1
+                yp += 1
+                yBall += 1
+            yp = y0
+            yBall = yBall0
+            while yp < yEnd:
+                xp = x0
+                bp = xBall0
+                while xp <= xEnd:
+                    zMin = z + b[yBall, bp]
+                    if inImage[yp, xp] < zMin:
+                        inImage[yp, xp] = zMin
+                    xp += 1
+                    bp += 1
+                yp += 1
+                yBall += 1
+            x += 1
+        y += 1
+
+
+def makeInterpolationArrays(indices, w, l, sl, f):
+    for i in xrange(l):
+        smallIndex = ((i - (f / 2)) / f)
+        if smallIndex >= sl - 1:
+            smallIndex = sl - 2
+        indices[i] = smallIndex
+        distance = (i + 0.5) / f - (smallIndex - 1 + 0.5)
+        w[i] = 1.0 - distance
+
 
 def enlargeImage(inImage, h, w, f):
-    pass
+    height, width = h, w
+    smallHeight, smallWidth = inImage.shape
+    outImage = np.zeros((height, width))
+    xSmallIndices = np.zeros((1, width))
+    xWeights = np.zeros((1, width))
+    makeInterpolationArrays(xSmallIndices, xWeights, width, smallWidth, f)
+    ySmallIndices = np.zeros((1, height))
+    yWeights = np.zeros((1, height))
+    makeInterpolationArrays(ySmallIndices, yWeights, height, smallHeight, f)
+    line0 = np.zeros((1, width))
+    line1 = np.zeros((1, width))
+    for x in xrange(width):
+        line1[x] = inImage[1, xSmallIndices[x]] * xWeights[x] + \
+                   inImage[1, xSmallIndices[x] + 1] * (1 - xWeights[x])
+    ySmallLine0 = 0
+    for y in xrange(height):
+        if ySmallLine0 < ySmallIndices[y]:
+            swap = line0
+            line0 = line1
+            line1 = swap
+            ySmallLine0 += 1
+            sYPointer = ySmallIndices[y] + 1
+            for x in xrange(width):
+                line1[x] = inImage[sYPointer, xSmallIndices[x]] * \
+                           xWeights[x] + inImage[sYPointer, xSmallIndices[x] + 1] * \
+                                         (1 - xWeights[x])
+        weight = yWeights[y]
+        for x in xrange(width):
+            outImage[y, x] = line0[x] * weight + line1[x] * (1 - weight)
+    return outImage
+
