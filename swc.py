@@ -3,11 +3,13 @@ __author__ = 'Su Lei'
 import numpy as np
 import math
 import time
+import cv2 as cv
+from subBackground import subBackground
 
 swcType = np.dtype({
-    'names': ['serial', 'nodeTye', 'x', 'y', 'z', 'r', 'parentSerial'],
-    'formats': [np.int, np.int, 'f', 'f', 'f', 'f', 'i']
-}, align=True)
+                       'names': ['serial', 'nodeTye', 'x', 'y', 'z', 'r', 'parentSerial'],
+                       'formats': [np.int, np.int, 'f', 'f', 'f', 'f', 'i']
+                   }, align=True)
 
 
 def readSwc(filename):
@@ -17,12 +19,15 @@ def readSwc(filename):
         tmpStr = eachLine.strip().split(' ')
         tmpNum = []
         for i in xrange(len(tmpStr)):
-            if i is 0 or i is 1 or i is 6:
+            if i == 0 or i == 1 or i == 6:
                 tmpNum.append(int(tmpStr[i]))
+            elif i == 2 or i == 3:
+                tmpNum.append(float(tmpStr[i]) * 10 / 3)
             else:
                 tmpNum.append(float(tmpStr[i]))
         swcNum.append(tmpNum)
     return swcNum
+
 
 def readSwcNp(filename):
     f = open(filename)
@@ -42,6 +47,7 @@ def readSwcNp(filename):
         swcNp = np.append(tmpSwcNp, swcNp)
     return swcNp
 
+
 def cmpAsZ(x, y):
     if x[2] > y[2]:
         return 1
@@ -55,6 +61,7 @@ def trimSwc(s):
         if len(s) is 0:
             break
     pass
+
 
 def convert2line(s):
     sn = len(s)
@@ -73,6 +80,7 @@ def convert2line(s):
         i += 1
     return lines
 
+
 def printLineHeadAndTail(ls):
     for i in xrange(len(ls)):
         lineLength = len(ls[i])
@@ -80,8 +88,10 @@ def printLineHeadAndTail(ls):
         tail = (ls[i][lineLength - 1][0], ls[i][lineLength - 1][6])
     print head, tail
 
+
 def distanceOf2p(p1, p2):
     return math.sqrt((p1[0] - p2[0]) ** 2 + (p1[1] - p2[1]) ** 2 + (p1[2] - p2[2]) ** 2)
+
 
 def insertLines(ls, minDistance):
     coordinatesOfLines = []
@@ -111,6 +121,7 @@ def insertLines(ls, minDistance):
         coordinatesOfLines.append(coordinatesOfLine)
     return coordinatesOfLines
 
+
 def getBallCordinates(r):
     ballCordinates = []
     for i in xrange(-r, r + 1):
@@ -120,7 +131,8 @@ def getBallCordinates(r):
                     ballCordinates.append((i, j, k))
     return ballCordinates
 
-def getAllCordinates(ls, r):
+
+def getAllCordinates(ls, r, width, height, zRange):
     allCordinates = []
     ballCor = getBallCordinates(r)
     time.clock()
@@ -133,16 +145,20 @@ def getAllCordinates(ls, r):
                 x0 = int(cx) + k[0]
                 y0 = int(cy) + k[1]
                 z0 = int(cz) + k[2]
-                if x0 < 0 or y0 < 0 or z0 < 0:
+                if x0 < 0 or y0 < 0 or z0 < zRange(0):
+                    continue
+                if x0 >= width or y0 >= height or z0 >= zRange(1):
                     continue
                 allCordinates.append((x0, y0, z0))
         allCordinates = list(set(tuple(allCordinates)))
     allCordinates.sort(cmpAsZ)
     return np.array(allCordinates)
 
+
 def getArea(a):
     return ((min(a[:, 0]), max(a[:, 0])),
             (min(a[:, 1]), max(a[:, 1])), (min(a[:, 2]), max(a[:, 2])))
+
 
 def groupByZ(a, zRange):
     zS = zRange[0]
@@ -161,8 +177,27 @@ def groupByZ(a, zRange):
     return groups
 
 
+def doSub(area, width, height, src, dst, pre, post, write_pre, write_post, points, doSub):
+    (out_x_start, out_x_end), (out_y_start, out_y_end), (out_z_start, out_z_end) = area
+    zRange = out_z_end - out_z_start + 1
+    for i in xrange(zRange):
+        pointsInThisZ = points[i]
+        zSerial = pointsInThisZ[0][2]
+        readImageName = src + pre + '%05d' % zSerial + post
+        writeImageName = dst + write_pre + '%05d' % i + write_post
+        inImage = cv.imread(readImageName, cv.CV_LOAD_IMAGE_UNCHANGED)
+        tmpImage = inImage[out_y_start: out_y_end + 1, out_x_start: out_x_end + 1]
+        outImage = np.zeros((out_y_end - out_y_start + 1, out_x_end - out_x_start + 1), np.uint8)
+        if doSub:
+            subBackground(tmpImage)
+        for j in pointsInThisZ:
+            x = pointsInThisZ[j][0]
+            y = pointsInThisZ[j][1]
+            outImage[y, x] = tmpImage[y, x]
+        cv.imwrite(writeImageName, outImage)
+
 # if __name__ == '__main__':
-#     outSwcNum = readSwc('test.swc')
+# outSwcNum = readSwc('test.swc')
 #     trimSwc(outSwcNum)
 #     linesInSwc = convert2line(outSwcNum)
 #     insertedLines = insertLines(linesInSwc, 5)

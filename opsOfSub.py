@@ -18,7 +18,7 @@ def createRollingBall(r):
     else:
         shrinkFactor = 8
         arcTrimPer = 40
-    smallballradius = r / float(shrinkFactor)
+    smallballradius = r / shrinkFactor
     if smallballradius < 1:
         smallballradius = 1
     rsquare = smallballradius * smallballradius
@@ -79,7 +79,7 @@ def getMinMax(inImage):
         for j in xrange(x):
             if inImage[i, j] > max1:
                 max1 = inImage[i, j]
-            elif inImage(i, j) < min1:
+            elif inImage[i, j] < min1:
                 min1 = inImage[i, j]
     return min1, max1
 
@@ -187,14 +187,14 @@ def enlargeImage(inImage, h, w, f):
     height, width = h, w
     smallHeight, smallWidth = inImage.shape
     outImage = np.zeros((height, width))
-    xSmallIndices = np.zeros((1, width))
-    xWeights = np.zeros((1, width))
+    xSmallIndices = np.zeros(width)
+    xWeights = np.zeros(width)
     makeInterpolationArrays(xSmallIndices, xWeights, width, smallWidth, f)
-    ySmallIndices = np.zeros((1, height))
-    yWeights = np.zeros((1, height))
+    ySmallIndices = np.zeros(height)
+    yWeights = np.zeros(height)
     makeInterpolationArrays(ySmallIndices, yWeights, height, smallHeight, f)
-    line0 = np.zeros((1, width))
-    line1 = np.zeros((1, width))
+    line0 = np.zeros(width)
+    line1 = np.zeros(width)
     for x in xrange(width):
         line1[x] = inImage[1, xSmallIndices[x]] * xWeights[x] + \
                    inImage[1, xSmallIndices[x] + 1] * (1 - xWeights[x])
