@@ -39,16 +39,27 @@ def createRollingBall(r):
     return data, shrinkFactor
 
 
-def filter3(inImage, l, pixel0, inc, t):
+def filter3(inImage, s, n, t):
     i = 0
-    p = pixel0
-    v3 = inImage.take(pixel0)
+    if s == 'row':
+        y_ini = n
+        x_ini = 0
+        l = inImage.shape[1]
+    else:
+        y_ini = 0
+        x_ini = n
+        l = inImage.shape[0]
+    v3 = inImage[y_ini, x_ini]
     v2 = v3
     while i < l:
+        print s, n, y_ini, x_ini, i
         v1 = v2
         v2 = v3
         if i < l - 1:
-            v3 = inImage.take(p + inc)
+            if s == 'row':
+                v3 = inImage[y_ini, x_ini + 1]
+            else:
+                v3 = inImage[y_ini + 1, x_ini]
         if t == 'MAXIMUM':
             if v1 > v3:
                 max1 = v1
@@ -56,19 +67,22 @@ def filter3(inImage, l, pixel0, inc, t):
                 max1 = v3
             if v2 > max1:
                 max1 = v2
-            inImage.put(p, max1)
+            inImage[y_ini, x_ini] = max1
         else:
-            inImage.put(p, (v1 + v2 + v3) * 1 / 3)
-        p += inc
+            inImage[y_ini, x_ini] = (v1 + v2 + v3) * 1 / 3
+        if s == 'row':
+            x_ini += 1
+        else:
+            y_ini += 1
         i += 1
 
 
 def filter3x3(inImage, type1):
     height, width = inImage.shape
     for y in xrange(height):
-        filter3(inImage, width, y * width, 1, type1)
+        filter3(inImage, 'row', y, type1)
     for x in xrange(width):
-        filter3(inImage, height, x, height, type1)
+        filter3(inImage, 'column', x, type1)
 
 
 def getMinMax(inImage):
